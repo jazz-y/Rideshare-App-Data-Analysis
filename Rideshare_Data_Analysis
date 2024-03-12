@@ -1,0 +1,155 @@
+#%% md
+An analysis of Uber and Lyft data from 2018 in the Boston area. Data Source sourced from Bikram Maharjan on Kaggle: https://www.kaggle.com/datasets/brllrb/uber-and-lyft-dataset-boston-ma/data.
+#%%
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+# Importing the necessary libraries
+#%%
+prices = pd.read_csv("./data/rideshare_kaggle.csv")
+#%%
+# Basic dataset information
+# print(prices.columns)
+# print(prices.from_records)
+# print(prices.source)
+# print(prices.columns.size)
+# print(prices.describe().transpose())
+#%% md
+
+#%%
+# Showing all columns
+pd.set_option('display.max_columns', None)
+prices.min_columns = 57
+# Getting a sense of the data
+# print(prices.hour.unique())
+# print(prices.day.unique())
+# print(prices.month.unique())
+# print(prices.source.unique())
+# print(prices.destination.unique())
+# print(prices.cab_type.unique())
+# print(prices.product_id.unique())
+# print(prices.price.unique())
+# This is the maximum temperature, likely in Fahrenheit given that it's Boston
+print(prices.temperature.max())
+# Checking that the humidity doesn't go above 1
+# print(prices.humidity.unique())
+# print(prices.id.unique().size)
+# Here we're showing prices
+prices[0:5][prices.columns]
+#%%
+# Here's the list of features:
+print(prices.columns)
+#%% md
+I can see that there are 693071 pieces of data (examples) and 57 features. The data comes from "Uber and Lyft Dataset Boston, MA" by BM (Bikram Maharjan) on Kaggle (https://www.kaggle.com/datasets/brllrb/uber-and-lyft-dataset-boston-ma/data). Maharajan did not say where they got this dataset from or how they got the Uber and Lyft parts of the data, but they mentioned that they added weather data that they found themselves. There are both numerical and categorical types of data, with a large range of types.
+#%% md
+In order to clean up the data, we need to pick the features that we are the most interested in exploring. I found temperature, precipProbability, precipintensityMax, windSpeed, price, surge_multiplier, distance, and datetime to be the most interesting features. temperature I assume is in Fahrenheit, since the highest temperature recorded when converted from Celsius to Fahrenheit is very unlikely in Boston (57.22 C = 134.996). precipProbability is the probability that it will rain since the values range from 0.00 to 1.0. precipIntensity I assume was the precipitation intensity at the time that the ride was requested, which I'm going to assume is in mm/hour since that's the units I've seen most commonly online. windSpeed is what I assume to be in mph since that's the units I've seen most often in weather reports. price I assume is in dollars. surge_multiplier is what I've researched online is the price multiplier of the standard price during times that a lot of rides are requested. distance is what I assume to be the distance traveled during the ride in miles. datetime is what I assume is the time that the ride was requested.
+#%%
+weatherRides = prices[["temperature", "precipProbability", "precipIntensity", "windSpeed", "price", "surge_multiplier", "distance"]]
+# Taking a peek at our transformed dataframe
+print(weatherRides[:5][:])
+# While looking at the data card on Kaggle, I saw that some of the prices were "NA", so I'm dropping them from the dataset.
+# "NA" price may be an indicator that something perhaps went wrong with the ride or that there was an abnormal event that caused the user to not be charged for their ride, which may also affect other features of the ride. It may be also be possible that the rider left the vehicle.
+weatherRides = weatherRides.dropna()
+#%% md
+The summary statistics let us peek into what's to come, such as the range and maximum values.
+#%%
+# Printing out the summary statistics
+print(weatherRides.describe().transpose())
+# setting style:
+sns.set_style("whitegrid")
+# Violin plots for all the features
+plt.figure()
+# makes the violin plot, shows medians
+violinPlot1 = plt.violinplot([weatherRides["price"], weatherRides["temperature"], weatherRides["windSpeed"], weatherRides["distance"]], showmedians=True)
+# list of colors that we'll use
+colors = ['#1f77b4', '#ff7f0e', '#3d3c3c', '#ff97e2']
+for i, violin in enumerate(violinPlot1['bodies']):
+    violin.set_facecolor(colors[i])
+# styling the x ticks
+plt.xticks(rotation = 75, ha = 'right',
+           fontsize = 16, color = 'black')
+plt.title("Distributions of Weather-Related Features, Bigger Scale")
+plt.xlabel("Weather-Related Features")
+plt.xticks(ticks=[1, 2, 3, 4], labels = ["price", "temperature", "windSpeed", "distance"])
+plt.ylabel("Number")
+plt.show()
+
+
+#%% md
+Here we can see that precipProbability has the widest range with possibly many outliers. temperature seems approximately normal and the other two show some right skewness.
+#%%
+plt.figure()
+# Second figure to show smaller values, shows medians
+violinPlot2 = plt.violinplot([weatherRides["precipProbability"], weatherRides["precipIntensity"], weatherRides["surge_multiplier"]], showmedians=True)
+# setting different colors
+colors = ['#1efa60', '#1905f7', '#360463', '#c9887b']
+# Setting colors for the second plot
+for i, violin in enumerate(violinPlot2['bodies']):
+    violin.set_facecolor(colors[i])
+# styling the x ticks
+plt.xticks(rotation = 75, ha = 'right',
+           fontsize = 16, color = 'black')
+plt.title("Distributions of Weather-Related Features, Smaller Scale")
+plt.xlabel("Weather-Related Features")
+plt.xticks(ticks=[1, 2, 3], labels = ["precipProbability", "precipIntensity", "surge_multiplier"])
+plt.ylabel("Number")
+plt.show()
+#%% md
+The ranges of all 3 categories is very small with some outliers.
+#%% md
+anchor for distance
+<a id='distance_distr'></a>
+#%%
+plt.figure(1)
+plt.hist(weatherRides['distance'], bins=20, color='skyblue')
+plt.title("Distribution of the Distance Traveled using Uber of Lyft")
+plt.xlabel("Distance Traveled (Miles)")
+plt.ylabel("Density (Count)")
+plt.show()
+
+#%% md
+anchor for distance traveled
+<a id='temp_distr'></a>
+#%%
+plt.figure(2)
+plt.hist(weatherRides['temperature'], bins=20, color='salmon')
+plt.title("Distribution Of The Temperature At The Time Of The Ride Using Uber of Lyft")
+plt.xlabel("Temperature (Fahrenheit)")
+plt.ylabel("Density (Count)")
+plt.show()
+#%% md
+[Distance Distribution](#distance_distr)Here we can see that the distribution for the distance travelled in miles has some right skewness due to some outliers, such as the points where the distance travelled is more than 7 miles. Upon further inspection, the data appears to have 2 "humps," indicating that it's bimodal.
+
+[Temperature Distribution](#temp_distr)Here we can see that the distributuon for the temperature in Fahrenheit looks approximately normal, with a bit of a bump to the left of the graph.
+#%% md
+I want to investigate this question: How does temperature affect the distance of a ride that a person is willing to request? I see that temperature looks like it's close to being normally distributed and distance has some obvious right skewness and isn't normal, meaning that one or more of the features may be influencing it. We know that price probably influences it the most, but what about temperature? I feel like it's more likely for someone to go a longer distance with an uber if the temperature is extreme, but I want to see if the data corroborates my thinking. I at first wanted to analyze precipitation and distance, but the precipitation data I chose doesn't have a big range, so I chose something else. This is mainly based on how I got an uber once from the village to the 40 just because it was pouring outside and I needed to go back. I'd usually never get an Uber for such a sort distance, but that time the rain made me do it! I wonder if other people get Ubers/Lyfts for short distances while it's raining.
+
+I plan on accepting or rejecting my hypothesis based on if plotting distance based on temperature shows some sort of relationship, accepting my hypothesis if the comparison between the two shows some sort of relationship.
+#%%
+# Linear regression of temperature v. distance
+plt.figure()
+sns.lineplot(x=weatherRides["temperature"], y=weatherRides["distance"], color="#a23deb", linewidth=0.5)
+sns.regplot(x=weatherRides["temperature"], y=weatherRides["distance"], scatter=False, color="#9bfae7")
+plt.title("Temperature vs Distance Travelled Using Uber or Lyft With Linear Regression")
+plt.xlabel("Temperature (F)")
+plt.ylabel("Distance (Miles)")
+plt.show()
+#%% md
+Yikes! The data looks like a heartbeat monitor, but it's pretty uniform except for that one value at around 29.5 degrees F.
+In that case, let's find the correlation between the two variables:
+#%%
+# Getting the correlation between the two:
+corrOfDistAndTemp = weatherRides[["temperature", "distance"]].corr()
+print(corrOfDistAndTemp)
+#%% md
+As suspected, there is very little correlation between the two, almost zero, but if we want to be exact it's -0.002738, supported by the linear regression line that appears to have a very low, slightly negative slope.
+#%% md
+I surprisingly didn't find anything indicating that there's some sort of relationship between temperature and distance traveled. The correlation between them is very close to 0, indicating that it's very unlikely that they're related. Although correlation isn't causation, it can still give us some insight into their relationship. Thus, I reject my hypothesis that that temperature affects the distance of a user's ride using Uber or Lyft.
+#%% md
+When analyzing this data we need to take int account the stakeholders, Uber and Lyft. Some ethical issues that I see is the collection of user data, such as the longitude and latitude of where the ride was ordered from. If this data were to fall into the wrong hands, it could be used to stalk users, considering that each entry has a user id attached. What's also of concern is the authenticity and legality of the data, as I could not find a way to authenticate the data and Maharjan does not seem to be affiliated with Uber or Lyft.
+#%% md
+When analyzing the data I found that there were definitely some necessary features added by the author, like moon phases. Temperature was useful, but things like apparentTemperatureHigh can be very subjective from person to person, reducing its significance. There was also no explanation as to how this metric was calculated. The most informative features were the ones that the author claimed were from Uber and Lyft, like the distance and price.
+
+I think that traffic data would have been very useful, especially for a major city like Boston. The amount of traffic could affect the price of a ride. I also think that a larger range of dates for the data would have been useful, such as data for the fall, winter, or even the whole year.
+#%% md
